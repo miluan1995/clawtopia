@@ -1,0 +1,17 @@
+:root {
+  --bg: #f0e6d3;
+  --card: #fff8ee;
+  --accent: #ff8c42;
+  --text: #3d2c1e;
+  --green: #7bc67e;
+  --blue: #6bb5e0;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
