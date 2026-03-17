@@ -11,28 +11,33 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 contract ClawToken is ERC20Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
     IAgentRegistry public registry;
     address public treasury;
+    address public devWallet;      // dev 钱包，收 1% 税
     address public pair;           // DEX pair address
-    uint256 public marketCapThreshold; // Agent-only 阈值（单位 wei，默认 35K USD 等值 BNB）
-    uint16 public constant TAX_BPS = 300; // 3%
-    bool public agentOnlyLifted;   // 手动解除 agent-only
+    uint256 public marketCapThreshold;
+    uint16 public constant TAX_BPS = 300;      // 总税 3%
+    uint16 public constant DEV_TAX_BPS = 100;  // dev 回流 1%
+    bool public agentOnlyLifted;
 
-    mapping(address => bool) public taxExempt; // 免税地址（treasury/pair/owner）
+    mapping(address => bool) public taxExempt;
 
     event AgentOnlyLifted();
 
     function initialize(
         address _registry,
         address _treasury,
+        address _devWallet,
         uint256 _threshold
     ) external initializer {
         __ERC20_init("ClawTopia", "CLAW");
         __Ownable_init(msg.sender);
         registry = IAgentRegistry(_registry);
         treasury = _treasury;
+        devWallet = _devWallet;
         marketCapThreshold = _threshold;
         taxExempt[msg.sender] = true;
         taxExempt[_treasury] = true;
-        _mint(msg.sender, 1_000_000_000 ether); // 10亿
+        taxExempt[_devWallet] = true;
+        _mint(msg.sender, 1_000_000_000 ether);
     }
 
     function _update(address from, address to, uint256 amount) internal override {
@@ -44,12 +49,14 @@ contract ClawToken is ERC20Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
             require(registry.isAgent(to), "Agent-only phase: register first");
         }
 
-        // 3% 税收（买卖都收，免税地址除外）
+        // 3% 税收：2% → treasury, 1% → devWallet
         bool isSell = (pair != address(0) && to == pair && from != address(0));
         if ((isBuy || isSell) && !taxExempt[isBuy ? to : from]) {
-            uint256 tax = amount * TAX_BPS / 10000;
-            super._update(from, treasury, tax);
-            amount -= tax;
+            uint256 devTax = amount * DEV_TAX_BPS / 10000;
+            uint256 treasuryTax = amount * (TAX_BPS - DEV_TAX_BPS) / 10000;
+            super._update(from, devWallet, devTax);
+            super._update(from, treasury, treasuryTax);
+            amount -= (devTax + treasuryTax);
         }
 
         super._update(from, to, amount);
@@ -68,6 +75,7 @@ contract ClawToken is ERC20Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
     function setTaxExempt(address addr, bool exempt) external onlyOwner { taxExempt[addr] = exempt; }
     function setRegistry(address _r) external onlyOwner { registry = IAgentRegistry(_r); }
     function setTreasury(address _t) external onlyOwner { treasury = _t; }
+    function setDevWallet(address _d) external onlyOwner { devWallet = _d; taxExempt[_d] = true; }
     function setThreshold(uint256 _t) external onlyOwner { marketCapThreshold = _t; }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}

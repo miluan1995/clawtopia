@@ -18,6 +18,7 @@ contract ClawTopiaTest is Test {
     address agent1 = vm.addr(1);
     address agent2 = vm.addr(2);
     address human = vm.addr(3);
+    address devWallet = vm.addr(4);
     address pair = address(0xDEAD);
 
     function setUp() public {
@@ -38,7 +39,7 @@ contract ClawTopiaTest is Test {
         // Deploy Token
         ClawToken tokenImpl = new ClawToken();
         ERC1967Proxy tokenProxy = new ERC1967Proxy(
-            address(tokenImpl), abi.encodeCall(ClawToken.initialize, (address(registry), address(treasury), 35_000 ether))
+            address(tokenImpl), abi.encodeCall(ClawToken.initialize, (address(registry), address(treasury), devWallet, 35_000 ether))
         );
         token = ClawToken(address(tokenProxy));
         token.setPair(pair);
@@ -107,18 +108,20 @@ contract ClawTopiaTest is Test {
     function test_BuyTax3Percent() public {
         token.transfer(pair, 10000 ether);
         uint256 treasuryBefore = token.balanceOf(address(treasury));
+        uint256 devBefore = token.balanceOf(devWallet);
         vm.prank(pair);
         token.transfer(agent1, 1000 ether);
-        uint256 taxCollected = token.balanceOf(address(treasury)) - treasuryBefore;
-        assertEq(taxCollected, 30 ether); // 3% of 1000
+        assertEq(token.balanceOf(address(treasury)) - treasuryBefore, 20 ether); // 2%
+        assertEq(token.balanceOf(devWallet) - devBefore, 10 ether); // 1%
     }
 
     function test_SellTax3Percent() public {
         uint256 treasuryBefore = token.balanceOf(address(treasury));
+        uint256 devBefore = token.balanceOf(devWallet);
         vm.prank(agent1);
-        token.transfer(pair, 100 ether); // agent → pair = sell
-        uint256 taxCollected = token.balanceOf(address(treasury)) - treasuryBefore;
-        assertEq(taxCollected, 3 ether); // 3% of 100
+        token.transfer(pair, 100 ether);
+        assertEq(token.balanceOf(address(treasury)) - treasuryBefore, 2 ether); // 2%
+        assertEq(token.balanceOf(devWallet) - devBefore, 1 ether); // 1%
     }
 
     function test_NoTaxOnRegularTransfer() public {
