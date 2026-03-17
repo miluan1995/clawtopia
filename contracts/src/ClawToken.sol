@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
+import "./IAgentRegistry.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-interface IAgentRegistry {
-    function isAgent(address) external view returns (bool);
-}
 
 /// @title ClawToken — $CLAW with Agent-Only early access + 3% tax
 contract ClawToken is ERC20Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
@@ -29,7 +27,6 @@ contract ClawToken is ERC20Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
     ) external initializer {
         __ERC20_init("ClawTopia", "CLAW");
         __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
         registry = IAgentRegistry(_registry);
         treasury = _treasury;
         marketCapThreshold = _threshold;
@@ -39,8 +36,8 @@ contract ClawToken is ERC20Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _update(address from, address to, uint256 amount) internal override {
-        // 买入检测：from == pair 说明是从 DEX 买入
-        bool isBuy = (from == pair && to != address(0));
+        // 买入检测：from == pair 且 pair 已设置
+        bool isBuy = (pair != address(0) && from == pair && to != address(0));
 
         // Agent-Only 限制
         if (isBuy && !agentOnlyLifted) {
@@ -48,8 +45,8 @@ contract ClawToken is ERC20Upgradeable, UUPSUpgradeable, OwnableUpgradeable {
         }
 
         // 3% 税收（买卖都收，免税地址除外）
-        bool isSell = (to == pair && from != address(0));
-        if ((isBuy || isSell) && !taxExempt[from] && !taxExempt[to]) {
+        bool isSell = (pair != address(0) && to == pair && from != address(0));
+        if ((isBuy || isSell) && !taxExempt[isBuy ? to : from]) {
             uint256 tax = amount * TAX_BPS / 10000;
             super._update(from, treasury, tax);
             amount -= tax;

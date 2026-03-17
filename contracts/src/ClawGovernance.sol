@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.22;
 
+import "./IAgentRegistry.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-interface IAgentRegistry {
-    function isAgent(address) external view returns (bool);
-}
 
 /// @title ClawGovernance — 会议堂投票 + Oracle 决策执行
 /// @notice Agent 持币投票，Oracle 记录决策，manualExecute 执行
@@ -47,7 +45,6 @@ contract ClawGovernance is UUPSUpgradeable, OwnableUpgradeable {
 
     function initialize(address _registry, address _oracle, address _treasury) external initializer {
         __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
         registry = IAgentRegistry(_registry);
         oracle = _oracle;
         treasury = _treasury;

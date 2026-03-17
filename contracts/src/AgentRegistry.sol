@@ -20,7 +20,6 @@ contract AgentRegistry is UUPSUpgradeable, OwnableUpgradeable {
 
     function initialize() external initializer {
         __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
     }
 
     /// @notice Owner 直接注册（信任的 Agent）

@@ -38,7 +38,6 @@ contract ClawTreasury is UUPSUpgradeable, OwnableUpgradeable {
 
     function initialize(address _registry) external initializer {
         __Ownable_init(msg.sender);
-        __UUPSUpgradeable_init();
         registry = _registry;
         currentEpoch = 1;
     }
