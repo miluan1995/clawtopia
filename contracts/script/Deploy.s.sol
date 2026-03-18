@@ -12,6 +12,8 @@ contract Deploy is Script {
     function run() external {
         address deployer = vm.envAddress("DEPLOYER");
         address devWallet = vm.envAddress("DEV_WALLET");
+        // PancakeSwap V2 Router on BSC mainnet
+        address router = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
         vm.startBroadcast();
 
         // 1. Registry
@@ -26,23 +28,27 @@ contract Deploy is Script {
             address(trsImpl), abi.encodeCall(ClawTreasury.initialize, (address(regProxy)))
         );
 
-        // 3. Token
+        // 3. Token (now with router)
         ClawToken tokImpl = new ClawToken();
         ERC1967Proxy tokProxy = new ERC1967Proxy(
-            address(tokImpl), abi.encodeCall(ClawToken.initialize, (address(regProxy), address(trsProxy), devWallet, 35_000 ether))
+            address(tokImpl), abi.encodeCall(ClawToken.initialize, (
+                address(regProxy), address(trsProxy), devWallet, router, 35_000 ether
+            ))
         );
 
         // 4. Governance
         ClawGovernance govImpl = new ClawGovernance();
         ERC1967Proxy govProxy = new ERC1967Proxy(
-            address(govImpl), abi.encodeCall(ClawGovernance.initialize, (address(regProxy), deployer, address(trsProxy)))
+            address(govImpl), abi.encodeCall(ClawGovernance.initialize, (
+                address(regProxy), deployer, address(trsProxy)
+            ))
         );
 
         vm.stopBroadcast();
 
-        console.log("Registry:", address(regProxy));
-        console.log("Treasury:", address(trsProxy));
-        console.log("Token:   ", address(tokProxy));
-        console.log("Governance:", address(govProxy));
+        console.log("Registry:   ", address(regProxy));
+        console.log("Treasury:   ", address(trsProxy));
+        console.log("Token:      ", address(tokProxy));
+        console.log("Governance: ", address(govProxy));
     }
 }

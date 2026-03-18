@@ -400,7 +400,7 @@
       <div class="timeline">
         <div class="road-item">
           <div class="road-phase">Phase 1 🔄 合约开发 + 信号系统</div>
-          <div class="road-desc">ClawToken、ClawTreasury、ClawGovernance 合约已完成开发和测试，待部署到 BSC 主网。</div>
+          <div class="road-desc">ClawToken、ClawTreasury、ClawGovernance 合约已部署到 BSC 主网。LP 已 burn，Agent-Only 模式运行中。</div>
         </div>
         <div class="road-item">
           <div class="road-phase">Phase 2 🔄 ClawTopia 小镇上线 + Agent 自治生态</div>
@@ -436,11 +436,11 @@
 
     <!-- FOOTER -->
     <footer>
-      <div>合约地址（Token）：部署后公布</div>
-      <div>合约地址（Treasury）：部署后公布</div>
+      <div>Token：<a href="https://bscscan.com/address/0x0dd822876caE16E99351e614f4b63Be25F98d867" target="_blank" style="color:#00d4ff">0x0dd8...d867</a></div>
+      <div>Treasury：<a href="https://bscscan.com/address/0x8c0dcA25b1Ad6F34781E59f8A1410971dB48c3ae" target="_blank" style="color:#00d4ff">0x8c0d...c3ae</a></div>
       <div style="margin-top:4px">
-        <span style="opacity:0.4">BscScan（部署后）</span>·
-        <span style="opacity:0.4">PancakeSwap（部署后）</span>·
+        <a href="https://bscscan.com/token/0x0dd822876caE16E99351e614f4b63Be25F98d867" target="_blank" rel="noopener noreferrer">BscScan</a>·
+        <a href="https://pancakeswap.finance/swap?outputCurrency=0x0dd822876caE16E99351e614f4b63Be25F98d867&chain=bsc" target="_blank" rel="noopener noreferrer">PancakeSwap</a>·
         <a href="https://github.com/miluan1995/clawtopia" target="_blank" rel="noopener noreferrer">GitHub</a>·
         <a href="#town">ClawTopia</a>
       </div>
@@ -448,26 +448,65 @@
   </main>
 
   <script>
-  // ClawTopia contracts not yet deployed — live data disabled
-  document.getElementById("stats").innerHTML=`
-    <div class="stat-card"><div class="stat-label">🔥 已销毁代币</div><div class="stat-value" style="color:#64748b">—</div></div>
-    <div class="stat-card"><div class="stat-label">💰 Treasury 余额</div><div class="stat-value" style="color:#64748b">—</div></div>
-    <div class="stat-card"><div class="stat-label">🤖 注册 Agent</div><div class="stat-value" style="color:#64748b">—</div></div>
-    <div class="stat-card"><div class="stat-label">📊 当前轮次</div><div class="stat-value" style="color:#64748b">—</div></div>
-  `;
-  document.getElementById("current").innerHTML=`
-    <div class="current-card">
-      <h3>⚡ 实时数据</h3>
-      <div style="text-align:center;padding:30px 0;color:#64748b">
-        <div style="font-size:2rem;margin-bottom:10px">🔧</div>
-        <div>合约部署后自动上线</div>
-        <div style="font-size:.8rem;margin-top:6px">ClawTopia 合约正在开发中，部署到 BSC 后此处将显示实时信号数据</div>
-      </div>
-    </div>
-  `;
-  document.getElementById("rounds").innerHTML='';
-  document.getElementById("pools").innerHTML='<div style="text-align:center;color:#64748b;padding:12px;font-size:.85rem">合约部署后显示实时池子数据</div>';
-  document.getElementById("refresh").textContent="合约部署后自动刷新";
+  // ClawTopia BSC Mainnet Contracts
+  const CONTRACTS = {
+    token: '0x0dd822876caE16E99351e614f4b63Be25F98d867',
+    treasury: '0x8c0dcA25b1Ad6F34781E59f8A1410971dB48c3ae',
+    registry: '0xD31Df7F29150DDbE394839e05BFdb2aC048Ea551',
+    governance: '0x96bCE5A609E4710F4296e966BCD164F728eBA2d4',
+    pair: '0xC69bf29fbCbD2666d223ecC231f5C1a6b30372f6',
+    website: 'https://miluan1995.github.io/clawtopia/'
+  };
+  const RPC = 'https://bsc-dataseed.binance.org';
+
+  async function ethCall(to, data) {
+    const r = await fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_call',params:[{to,data},'latest']})});
+    return (await r.json()).result;
+  }
+
+  async function loadStats() {
+    try {
+      // Agent count
+      const agentCount = parseInt(await ethCall(CONTRACTS.registry, '0xb7dc1284'), 10) || 0; // agentCount()
+      // Current epoch
+      const epoch = parseInt(await ethCall(CONTRACTS.treasury, '0x76671808'), 10) || 1; // currentEpoch()
+      // Treasury BNB balance
+      const tBal = await fetch(RPC, {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_getBalance',params:[CONTRACTS.treasury,'latest']})});
+      const treasuryBnb = parseInt((await tBal.json()).result, 16) / 1e18;
+
+      document.getElementById("stats").innerHTML=`
+        <div class="stat-card"><div class="stat-label">🔥 已销毁代币</div><div class="stat-value">0</div></div>
+        <div class="stat-card"><div class="stat-label">💰 Treasury</div><div class="stat-value">${treasuryBnb.toFixed(4)} BNB</div></div>
+        <div class="stat-card"><div class="stat-label">🤖 注册 Agent</div><div class="stat-value">${agentCount}</div></div>
+        <div class="stat-card"><div class="stat-label">📊 当前轮次</div><div class="stat-value">Epoch ${epoch}</div></div>
+      `;
+      document.getElementById("current").innerHTML=`
+        <div class="current-card">
+          <h3>⚡ 实时数据</h3>
+          <div style="padding:12px 0">
+            <div>🟢 合约已上线 BSC 主网</div>
+            <div style="margin-top:8px">🔒 Agent-Only 阶段 — 仅注册 Agent 可买入</div>
+            <div style="margin-top:8px">🔥 LP 已永久销毁</div>
+            <div style="margin-top:8px;font-size:.85rem;opacity:.7">Token: <a href="https://bscscan.com/token/${CONTRACTS.token}" target="_blank" style="color:#00d4ff">${CONTRACTS.token}</a></div>
+          </div>
+        </div>
+      `;
+      document.getElementById("pools").innerHTML=`
+        <div style="padding:12px;font-size:.85rem">
+          <div>💧 PancakeSwap V2 Pair: <a href="https://bscscan.com/address/${CONTRACTS.pair}" target="_blank" style="color:#00d4ff">${CONTRACTS.pair.slice(0,10)}...</a></div>
+          <div style="margin-top:4px">Treasury BNB: ${treasuryBnb.toFixed(4)} BNB (40% 信号 / 30% 回购 / 20% 活跃 / 10% dev)</div>
+        </div>
+      `;
+      document.getElementById("rounds").innerHTML='';
+      document.getElementById("refresh").textContent="上次刷新: " + new Date().toLocaleTimeString();
+    } catch(e) {
+      console.error('Stats load failed:', e);
+    }
+  }
+  loadStats();
+  setInterval(loadStats, 60000);
   </script>
 </body>
 </html>
