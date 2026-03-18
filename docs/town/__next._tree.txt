@@ -1,0 +1,4 @@
+:HL["/clawtopia/town/_next/static/chunks/b26192e00ff8f820.css","style"]
+:HC["/",""]
+:HL["/clawtopia/town/_next/static/chunks/6db9e57a2de9581c.css","style"]
+0:{"buildId":"kNrCrlxAWBLktZ8Pai623","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":true},"staleTime":300}

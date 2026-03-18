@@ -1,0 +1,10 @@
+1:"$Sreact.fragment"
+2:I[15704,["/clawtopia/town/_next/static/chunks/6632d3900e6c30a1.js","/clawtopia/town/_next/static/chunks/148f2d356f93e523.js"],"ClientPageRoot"]
+3:I[6512,["/clawtopia/town/_next/static/chunks/09931ef9c8fe014d.js","/clawtopia/town/_next/static/chunks/e982ab1992dffb8b.js"],"default"]
+6:I[29461,["/clawtopia/town/_next/static/chunks/6632d3900e6c30a1.js","/clawtopia/town/_next/static/chunks/148f2d356f93e523.js"],"OutletBoundary"]
+7:"$Sreact.suspense"
+:HL["/clawtopia/town/_next/static/chunks/6db9e57a2de9581c.css","style"]
+0:{"buildId":"kNrCrlxAWBLktZ8Pai623","rsc":["$","$1","c",{"children":[["$","$L2",null,{"Component":"$3","serverProvidedParams":{"searchParams":{},"params":{},"promises":["$@4","$@5"]}}],[["$","link","0",{"rel":"stylesheet","href":"/clawtopia/town/_next/static/chunks/6db9e57a2de9581c.css","precedence":"next"}],["$","script","script-0",{"src":"/clawtopia/town/_next/static/chunks/09931ef9c8fe014d.js","async":true}],["$","script","script-1",{"src":"/clawtopia/town/_next/static/chunks/e982ab1992dffb8b.js","async":true}]],["$","$L6",null,{"children":["$","$7",null,{"name":"Next.MetadataOutlet","children":"$@8"}]}]]}],"loading":null,"isPartial":false}
+4:{}
+5:"$0:rsc:props:children:0:props:serverProvidedParams:params"
+8:null
