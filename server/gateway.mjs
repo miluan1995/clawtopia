@@ -1,6 +1,13 @@
 import { createServer } from 'http'
 import { WebSocketServer } from 'ws'
 import { ethers } from 'ethers'
+import { readFileSync, existsSync } from 'fs'
+import { join, extname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const STATIC_DIR = process.env.STATIC_DIR || join(__dirname, '..', 'docs', 'town')
+const MIME = {'.html':'text/html','.js':'application/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.mp3':'audio/mpeg','.woff2':'font/woff2','.svg':'image/svg+xml','.ico':'image/x-icon','.txt':'text/plain','.map':'application/json'}
 
 // === Agent 认证 + WebSocket 网关 ===
 // Agent 连接流程：
@@ -18,7 +25,7 @@ const registry = new ethers.Contract(REGISTRY_ADDR, REGISTRY_ABI, provider)
 
 // Session store
 const sessions = new Map()   // token → { address, name, emoji, x, y, location }
-const agentSockets = new Map() // address → ws
+const agentSockets = new Map() // token → ws
 
 function genToken() { return Array.from(crypto.getRandomValues(new Uint8Array(32))).map(b => b.toString(16).padStart(2, '0')).join('') }
 
@@ -45,15 +52,16 @@ const server = createServer(async (req, res) => {
       res.writeHead(401); res.end(JSON.stringify({ error: 'expired' })); return
     }
 
-    // 3. 查链上 AgentRegistry
-    try {
-      const isAgent = await registry.isAgent(address)
-      if (!isAgent) {
-        res.writeHead(403); res.end(JSON.stringify({ error: 'not registered agent' })); return
+    // 3. 查链上 AgentRegistry（demo 模式跳过）
+    if (!process.env.DEMO_MODE) {
+      try {
+        const isAgent = await registry.isAgent(address)
+        if (!isAgent) {
+          res.writeHead(403); res.end(JSON.stringify({ error: 'not registered agent' })); return
+        }
+      } catch {
+        console.warn('Registry check skipped')
       }
-    } catch {
-      // Registry 未部署时跳过检查（开发模式）
-      console.warn('Registry check skipped')
     }
 
     // 4. 发放 session
@@ -69,13 +77,23 @@ const server = createServer(async (req, res) => {
 
   // GET /agents — 当前在线 Agent 列表（公开）
   if (req.method === 'GET' && req.url === '/agents') {
-    const agents = [...sessions.values()].map(s => ({
+    const agents = [...sessions.entries()].filter(([t]) => agentSockets.has(t)).map(([t, s]) => ({
       address: s.address, name: s.name, emoji: s.emoji,
-      x: s.x, y: s.y, location: s.location,
-      online: agentSockets.has(s.address),
+      x: s.x, y: s.y, location: s.location, online: true,
     }))
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify(agents))
+    return
+  }
+
+  // Static file serving (town frontend)
+  let fp = req.url.split('?')[0].replace(/^\/clawtopia\/town|^\/town/, '')
+  if (fp === '/' || fp === '') fp = '/index.html'
+  const filePath = join(STATIC_DIR, fp)
+  if (existsSync(filePath)) {
+    const ct = MIME[extname(filePath)] || 'application/octet-stream'
+    res.writeHead(200, { 'Content-Type': ct, 'Access-Control-Allow-Origin': '*' })
+    res.end(readFileSync(filePath))
     return
   }
 
@@ -93,12 +111,17 @@ wss.on('connection', (ws, req) => {
 
   if (mode === 'observer') {
     observers.add(ws)
+    // Send current online agents snapshot
+    for (const [tok] of agentSockets) {
+      const s = sessions.get(tok)
+      if (s) ws.send(JSON.stringify({ type: 'agent_joined', agent: publicAgent(s) }))
+    }
   } else {
     const token = url.searchParams.get('token')
     const session = sessions.get(token)
     if (!session) { ws.close(4001, 'unauthorized'); return }
 
-    agentSockets.set(session.address, ws)
+    agentSockets.set(token, ws)
     broadcast({ type: 'agent_joined', agent: publicAgent(session) })
   }
 
@@ -133,8 +156,8 @@ wss.on('connection', (ws, req) => {
       const token = url.searchParams.get('token')
       const session = sessions.get(token)
       if (session) {
-        agentSockets.delete(session.address)
-        broadcast({ type: 'agent_left', address: session.address })
+        agentSockets.delete(token)
+        broadcast({ type: 'agent_left', address: session.address, name: session.name })
       }
     }
   })
