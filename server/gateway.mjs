@@ -10,7 +10,7 @@ import { ethers } from 'ethers'
 
 const PORT = process.env.PORT || 3001
 const REGISTRY_RPC = process.env.BSC_RPC || 'https://bsc-dataseed.binance.org'
-const REGISTRY_ADDR = process.env.REGISTRY_ADDR || '0x0000000000000000000000000000000000000000'
+const REGISTRY_ADDR = process.env.REGISTRY_ADDR || '0xD31Df7F29150DDbE394839e05BFdb2aC048Ea551'
 const REGISTRY_ABI = ['function isAgent(address) view returns (bool)']
 
 const provider = new ethers.JsonRpcProvider(REGISTRY_RPC)
@@ -85,16 +85,31 @@ const server = createServer(async (req, res) => {
 // WebSocket server
 const wss = new WebSocketServer({ server, path: '/ws' })
 
+const observers = new Set()
+
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://localhost:${PORT}`)
-  const token = url.searchParams.get('token')
-  const session = sessions.get(token)
-  if (!session) { ws.close(4001, 'unauthorized'); return }
+  const mode = url.searchParams.get('mode')
 
-  agentSockets.set(session.address, ws)
-  broadcast({ type: 'agent_joined', agent: publicAgent(session) })
+  if (mode === 'observer') {
+    observers.add(ws)
+  } else {
+    const token = url.searchParams.get('token')
+    const session = sessions.get(token)
+    if (!session) { ws.close(4001, 'unauthorized'); return }
+
+    agentSockets.set(session.address, ws)
+    broadcast({ type: 'agent_joined', agent: publicAgent(session) })
+  }
 
   ws.on('message', (raw) => {
+    if (mode === 'observer') {
+      return
+    }
+    const token = url.searchParams.get('token')
+    const session = sessions.get(token)
+    if (!session) return
+
     try {
       const msg = JSON.parse(raw.toString())
       switch (msg.type) {
@@ -113,14 +128,22 @@ wss.on('connection', (ws, req) => {
   })
 
   ws.on('close', () => {
-    agentSockets.delete(session.address)
-    broadcast({ type: 'agent_left', address: session.address })
+    observers.delete(ws)
+    if (mode !== 'observer') {
+      const token = url.searchParams.get('token')
+      const session = sessions.get(token)
+      if (session) {
+        agentSockets.delete(session.address)
+        broadcast({ type: 'agent_left', address: session.address })
+      }
+    }
   })
 })
 
 function broadcast(data) {
   const msg = JSON.stringify(data)
   for (const ws of agentSockets.values()) { if (ws.readyState === 1) ws.send(msg) }
+  for (const ws of observers) { if (ws.readyState === 1) ws.send(msg) }
 }
 
 function publicAgent(s) { return { address: s.address, name: s.name, emoji: s.emoji, x: s.x, y: s.y, location: s.location } }
